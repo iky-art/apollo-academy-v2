@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk — Apollo Academy</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="center-screen">
+  <div class="panel panel--pad panel--tilt-r" style="max-width:420px; width:100%;">
+    <div class="text-center mb-24">
+      <div class="brand__mark" style="margin:0 auto 12px;">A</div>
+      <h1 style="font-size:1.6rem;">Selamat Datang Kembali</h1>
+      <p class="muted" style="margin:0;">Lanjutkan misi belajarmu.</p>
+    </div>
+
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="email" placeholder="kamu@email.com" required>
+      </div>
+      <div class="field">
+        <label for="password">Kata Sandi</label>
+        <input type="password" id="password" autocomplete="current-password" placeholder="Kata sandi kamu" required>
+      </div>
+      <div class="field-error" id="formError"></div>
+
+      <button type="submit" class="btn btn--hanko btn--full" id="submitBtn">
+        <span id="submitLabel">Masuk</span>
+      </button>
+    </form>
+
+    <p class="text-center mt-24" style="font-size:.9rem;">
+      Belum punya akun? <a href="/register">Daftar di sini</a><br>
+      <a href="/login-admin" class="muted" style="font-size:.82rem;">Masuk sebagai admin</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script>
+// === Apollo Academy — Supabase Client & Shared Config ===
+
+const SUPABASE_URL = "https://pdgmxvfevvinfcrwyget.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_b2dHUQoztQJF3Oj-2Jofog_N276bXEw";
+
+// supabase-js v2 is loaded globally via CDN as `window.supabase`.
+// If this file loads before that CDN script, or the CDN script itself
+// failed (blocked, offline, wrong path), window.supabase won't exist yet.
+// We fail loudly here instead of silently leaving `client` undefined,
+// which is what causes the cryptic "client is not defined" error on
+// every page that tries to use it afterwards.
+let client;
+
+if (!window.supabase || typeof window.supabase.createClient !== "function") {
+  const msg =
+    "Gagal memuat pustaka Supabase. Cek koneksi internet kamu, atau pastikan " +
+    "urutan <script> di HTML benar: CDN supabase-js HARUS dimuat SEBELUM " +
+    "js/supabase-client.js.";
+  console.error("[Apollo Academy]", msg);
+  document.addEventListener("DOMContentLoaded", () => {
+    const banner = document.createElement("div");
+    banner.textContent = "⚠️ " + msg;
+    banner.style.cssText =
+      "position:fixed;top:0;left:0;right:0;z-index:9999;background:#d8402c;" +
+      "color:#fff;font-family:sans-serif;font-size:14px;padding:10px 16px;" +
+      "text-align:center;";
+    document.body.prepend(banner);
+  });
+} else {
+  client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// Also expose on window so it's reachable even if a page's inline script
+// runs in a slightly different scope than expected.
+window.client = client;
+
+// Daftar email admin — dipakai untuk gate login-admin.html & penetapan role otomatis
+const ADMIN_EMAILS = [
+  "kimlana269@gmail.com",
+  "kumenomikuroo@gmail.com",
+  "gtau22609@gmail.com",
+];
+
+function isAdminEmail(email) {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
+// Ambil sesi user saat ini, redirect ke login jika tidak ada & wajib login
+async function requireSession(redirectTo = "/login") {
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) {
+    window.location.href = redirectTo;
+    return null;
+  }
+  return session;
+}
+
+// Pastikan baris profil ada untuk user yang baru login (upsert ringan)
+async function ensureProfile(user, extra = {}) {
+  if (!user) return null;
+  const role = isAdminEmail(user.email) ? "admin" : "student";
+  const { data, error } = await client
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        email: user.email,
+        role,
+        ...extra,
+      },
+      { onConflict: "id", ignoreDuplicates: false }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("ensureProfile error:", error.message);
+    return null;
+  }
+  return data;
+}
+
+function showToast(message, type = "info") {
+  let toast = document.getElementById("aa-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "aa-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.className = `aa-toast aa-toast--${type} aa-toast--show`;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove("aa-toast--show"), 3200);
+}
+
+function formatError(err) {
+  if (!err) return "Terjadi kesalahan tak terduga.";
+  const msg = err.message || String(err);
+  if (msg.includes("Invalid login credentials")) return "Email atau kata sandi salah.";
+  if (msg.includes("User already registered")) return "Email ini sudah terdaftar. Coba masuk.";
+  if (msg.includes("Password should be at least")) return "Kata sandi minimal 6 karakter.";
+  if (msg.includes("Email not confirmed")) return "Cek email kamu untuk konfirmasi akun dulu, ya.";
+  return msg;
+}
+
+</script>
+<script>
+const form = document.getElementById("loginForm");
+const submitBtn = document.getElementById("submitBtn");
+const submitLabel = document.getElementById("submitLabel");
+const formError = document.getElementById("formError");
+
+// Kalau sudah ada sesi aktif, langsung lempar ke dashboard
+client.auth.getSession().then(({ data: { session } }) => {
+  if (session) window.location.href = "/";
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  formError.textContent = "";
+  submitBtn.disabled = true;
+  submitLabel.innerHTML = '<span class="spinner"></span>';
+
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    formError.textContent = formatError(error);
+    submitBtn.disabled = false;
+    submitLabel.textContent = "Masuk";
+    return;
+  }
+
+  await ensureProfile(data.user);
+  showToast("Berhasil masuk!", "success");
+  setTimeout(() => (window.location.href = "/"), 500);
+});
+</script>
+</body>
+</html>

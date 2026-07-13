@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Admin — Apollo Academy</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background-color: var(--paper-alt); }
+  .admin-nav { background: var(--ink); border-bottom: 3px solid var(--kin); }
+  .admin-nav .brand__name, .admin-nav .brand { color: var(--paper); }
+  .admin-nav .brand__mark { background: var(--kin); color: var(--ink); border-color: var(--kin); }
+
+  .stat-cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:16px; }
+  .stat-card { background: var(--paper-panel); border: var(--panel-border); border-radius: var(--radius); box-shadow: var(--panel-shadow-sm); padding: 18px; }
+  .stat-card .num { font-family: var(--font-impact); font-size: 2.2rem; color: var(--hanko); -webkit-text-stroke: 1px var(--ink); }
+  .stat-card .lbl { font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; color: var(--ink-soft); }
+
+  table { width:100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align:left; padding: 10px 12px; border-bottom: 2px solid var(--ink); font-size:.92rem; }
+  th { font-family: var(--font-head); font-size: .8rem; text-transform: uppercase; letter-spacing:.03em; background: var(--paper); }
+  tr:last-child td { border-bottom: none; }
+  .table-wrap { overflow-x:auto; background: var(--paper-panel); border: var(--panel-border); border-radius: var(--radius); box-shadow: var(--panel-shadow-sm); padding: 4px 16px 16px; }
+
+  .role-pill { font-family: var(--font-mono); font-size:.72rem; padding:3px 9px; border-radius:999px; border:2px solid var(--ink); }
+  .role-pill.admin { background: var(--kin); }
+  .role-pill.student { background: var(--ai); color:#fff; }
+
+  .tabs { display:flex; gap:8px; margin: 24px 0 8px; flex-wrap: wrap; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  .inline-form { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom: 16px; }
+  .inline-form .field { margin-bottom:0; min-width:140px; flex:1; }
+</style>
+</head>
+<body>
+
+<div id="gate" class="center-screen">
+  <div class="panel panel--pad text-center">
+    <div class="spinner" style="width:28px;height:28px;border-width:4px;"></div>
+    <p class="muted mt-16">Memverifikasi akses admin…</p>
+  </div>
+</div>
+
+<div id="adminApp" class="hidden">
+  <nav class="navbar admin-nav">
+    <div class="navbar__inner">
+      <a href="/admin" class="brand">
+        <div class="brand__mark">A</div>
+        <span class="brand__name">Apollo Academy — Admin</span>
+      </a>
+
+      <button class="nav-toggle" id="navToggle" aria-label="Buka menu" aria-expanded="false" aria-controls="navMenu" style="background:var(--ink); border-color: var(--kin);">
+        <span class="nav-toggle__bar" style="background: var(--kin);"></span>
+      </button>
+
+      <div class="navlinks-wrap" id="navMenu" style="background: var(--ink); border-bottom-color: var(--kin);">
+        <div class="navlinks">
+          <a href="#ringkasan" class="navlink" style="color: var(--paper);">Ringkasan</a>
+          <a href="#kelola" class="navlink" style="color: var(--paper);">Kelola</a>
+          <span class="badge badge--ai mono" id="adminEmailBadge"></span>
+          <button class="btn btn--ghost btn--sm" id="logoutBtn" style="color:var(--paper);">Keluar</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="wrap mt-24">
+    <h1 style="font-size:1.7rem;" id="ringkasan">Ringkasan</h1>
+    <div class="stat-cards">
+      <div class="stat-card"><div class="num" id="statUsers">–</div><div class="lbl">Total Pengguna</div></div>
+      <div class="stat-card"><div class="num" id="statChapters">–</div><div class="lbl">Total Chapter</div></div>
+      <div class="stat-card"><div class="num" id="statCompletions">–</div><div class="lbl">Chapter Diselesaikan</div></div>
+      <div class="stat-card"><div class="num" id="statAdmins">–</div><div class="lbl">Admin Aktif</div></div>
+    </div>
+
+    <div class="tabs" id="kelola">
+      <button class="btn btn--sm btn--hanko" data-tab="users">Pengguna</button>
+      <button class="btn btn--sm btn--ghost" data-tab="chapters">Chapter</button>
+    </div>
+
+    <section class="tab-panel active" id="tab-users">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Email</th><th>Nama</th><th>Role</th><th>XP</th><th>Streak</th></tr></thead>
+          <tbody id="usersTableBody"><tr><td colspan="5" class="muted">Memuat…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-chapters">
+      <div class="panel panel--pad">
+        <h3 class="mt-8" style="font-size:1rem;">Tambah Chapter Baru</h3>
+        <form id="chapterForm" class="inline-form">
+          <div class="field"><label>Volume</label><input type="number" id="chVolume" min="1" required></div>
+          <div class="field"><label>Nomor Chapter</label><input type="number" id="chNumber" min="1" required></div>
+          <div class="field" style="flex:2;"><label>Judul</label><input type="text" id="chTitle" required></div>
+          <div class="field"><label>XP Reward</label><input type="number" id="chXp" value="10" min="0" required></div>
+          <div class="field"><label>Terkunci?</label>
+            <select id="chLocked"><option value="false">Tidak</option><option value="true">Ya</option></select>
+          </div>
+          <button type="submit" class="btn btn--hanko">Tambah</button>
+        </form>
+        <p class="field-error" id="chapterFormError"></p>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table>
+          <thead><tr><th>Vol.</th><th>Ch.</th><th>Judul</th><th>XP</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="chaptersTableBody"><tr><td colspan="6" class="muted">Memuat…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script>
+// === Apollo Academy — Supabase Client & Shared Config ===
+
+const SUPABASE_URL = "https://pdgmxvfevvinfcrwyget.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_b2dHUQoztQJF3Oj-2Jofog_N276bXEw";
+
+// supabase-js v2 is loaded globally via CDN as `window.supabase`.
+// If this file loads before that CDN script, or the CDN script itself
+// failed (blocked, offline, wrong path), window.supabase won't exist yet.
+// We fail loudly here instead of silently leaving `client` undefined,
+// which is what causes the cryptic "client is not defined" error on
+// every page that tries to use it afterwards.
+let client;
+
+if (!window.supabase || typeof window.supabase.createClient !== "function") {
+  const msg =
+    "Gagal memuat pustaka Supabase. Cek koneksi internet kamu, atau pastikan " +
+    "urutan <script> di HTML benar: CDN supabase-js HARUS dimuat SEBELUM " +
+    "js/supabase-client.js.";
+  console.error("[Apollo Academy]", msg);
+  document.addEventListener("DOMContentLoaded", () => {
+    const banner = document.createElement("div");
+    banner.textContent = "⚠️ " + msg;
+    banner.style.cssText =
+      "position:fixed;top:0;left:0;right:0;z-index:9999;background:#d8402c;" +
+      "color:#fff;font-family:sans-serif;font-size:14px;padding:10px 16px;" +
+      "text-align:center;";
+    document.body.prepend(banner);
+  });
+} else {
+  client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// Also expose on window so it's reachable even if a page's inline script
+// runs in a slightly different scope than expected.
+window.client = client;
+
+// Daftar email admin — dipakai untuk gate login-admin.html & penetapan role otomatis
+const ADMIN_EMAILS = [
+  "kimlana269@gmail.com",
+  "kumenomikuroo@gmail.com",
+  "gtau22609@gmail.com",
+];
+
+function isAdminEmail(email) {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
+// Ambil sesi user saat ini, redirect ke login jika tidak ada & wajib login
+async function requireSession(redirectTo = "/login") {
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) {
+    window.location.href = redirectTo;
+    return null;
+  }
+  return session;
+}
+
+// Pastikan baris profil ada untuk user yang baru login (upsert ringan)
+async function ensureProfile(user, extra = {}) {
+  if (!user) return null;
+  const role = isAdminEmail(user.email) ? "admin" : "student";
+  const { data, error } = await client
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        email: user.email,
+        role,
+        ...extra,
+      },
+      { onConflict: "id", ignoreDuplicates: false }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("ensureProfile error:", error.message);
+    return null;
+  }
+  return data;
+}
+
+function showToast(message, type = "info") {
+  let toast = document.getElementById("aa-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "aa-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.className = `aa-toast aa-toast--${type} aa-toast--show`;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove("aa-toast--show"), 3200);
+}
+
+function formatError(err) {
+  if (!err) return "Terjadi kesalahan tak terduga.";
+  const msg = err.message || String(err);
+  if (msg.includes("Invalid login credentials")) return "Email atau kata sandi salah.";
+  if (msg.includes("User already registered")) return "Email ini sudah terdaftar. Coba masuk.";
+  if (msg.includes("Password should be at least")) return "Kata sandi minimal 6 karakter.";
+  if (msg.includes("Email not confirmed")) return "Cek email kamu untuk konfirmasi akun dulu, ya.";
+  return msg;
+}
+
+</script>
+<script>
+let currentUser = null;
+
+(async function init() {
+  const session = await requireSession("/login-admin");
+  if (!session) return;
+
+  currentUser = session.user;
+
+  if (!isAdminEmail(currentUser.email)) {
+    showToast("Akun ini tidak memiliki akses admin.", "error");
+    await client.auth.signOut();
+    setTimeout(() => (window.location.href = "/login-admin"), 1200);
+    return;
+  }
+
+  const profile = await ensureProfile(currentUser);
+  if (!profile || profile.role !== "admin") {
+    showToast("Akses admin ditolak oleh server.", "error");
+    setTimeout(() => (window.location.href = "/login-admin"), 1200);
+    return;
+  }
+
+  document.getElementById("adminEmailBadge").textContent = currentUser.email;
+  document.getElementById("gate").classList.add("hidden");
+  document.getElementById("adminApp").classList.remove("hidden");
+
+  loadStatsAndTables();
+})();
+
+async function loadStatsAndTables() {
+  const [{ data: users }, { data: chapters }, { count: completions }] = await Promise.all([
+    client.from("profiles").select("email, display_name, role, xp, streak"),
+    client.from("chapters").select("id, volume, chapter_number, title, xp_reward, is_locked").order("volume").order("chapter_number"),
+    client.from("reading_progress").select("*", { count: "exact", head: true }).eq("completed", true),
+  ]);
+
+  document.getElementById("statUsers").textContent = users?.length ?? 0;
+  document.getElementById("statChapters").textContent = chapters?.length ?? 0;
+  document.getElementById("statCompletions").textContent = completions ?? 0;
+  document.getElementById("statAdmins").textContent = (users || []).filter(u => u.role === "admin").length;
+
+  const usersBody = document.getElementById("usersTableBody");
+  usersBody.innerHTML = (users || []).map(u => `
+    <tr>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${escapeHtml(u.display_name || '—')}</td>
+      <td><span class="role-pill ${u.role}">${u.role}</span></td>
+      <td class="mono">${u.xp ?? 0}</td>
+      <td class="mono">${u.streak ?? 0}🔥</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="muted">Belum ada pengguna.</td></tr>`;
+
+  renderChapters(chapters || []);
+}
+
+function renderChapters(chapters) {
+  const body = document.getElementById("chaptersTableBody");
+  body.innerHTML = chapters.map(ch => `
+    <tr>
+      <td class="mono">${ch.volume}</td>
+      <td class="mono">${ch.chapter_number}</td>
+      <td>${escapeHtml(ch.title)}</td>
+      <td class="mono">${ch.xp_reward}</td>
+      <td>${ch.is_locked ? '<span class="role-pill admin">Terkunci</span>' : '<span class="role-pill student">Terbuka</span>'}</td>
+      <td>
+        <button class="btn btn--sm btn--ghost" onclick="toggleLock('${ch.id}', ${ch.is_locked})">
+          ${ch.is_locked ? 'Buka' : 'Kunci'}
+        </button>
+        <button class="btn btn--sm btn--ghost" onclick="deleteChapter('${ch.id}')">Hapus</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="6" class="muted">Belum ada chapter.</td></tr>`;
+}
+
+document.getElementById("chapterForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById("chapterFormError");
+  errEl.textContent = "";
+
+  const payload = {
+    volume: Number(document.getElementById("chVolume").value),
+    chapter_number: Number(document.getElementById("chNumber").value),
+    title: document.getElementById("chTitle").value.trim(),
+    xp_reward: Number(document.getElementById("chXp").value),
+    is_locked: document.getElementById("chLocked").value === "true",
+  };
+
+  const { error } = await client.from("chapters").insert(payload);
+  if (error) {
+    errEl.textContent = formatError(error);
+    return;
+  }
+  showToast("Chapter ditambahkan!", "success");
+  e.target.reset();
+  document.getElementById("chXp").value = 10;
+  loadStatsAndTables();
+});
+
+async function toggleLock(id, currentlyLocked) {
+  const { error } = await client.from("chapters").update({ is_locked: !currentlyLocked }).eq("id", id);
+  if (error) { showToast(formatError(error), "error"); return; }
+  loadStatsAndTables();
+}
+
+async function deleteChapter(id) {
+  if (!confirm("Hapus chapter ini? Tindakan tidak bisa dibatalkan.")) return;
+  const { error } = await client.from("chapters").delete().eq("id", id);
+  if (error) { showToast(formatError(error), "error"); return; }
+  showToast("Chapter dihapus.", "success");
+  loadStatsAndTables();
+}
+
+document.querySelectorAll(".tabs [data-tab]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tabs [data-tab]").forEach(b => b.classList.replace("btn--hanko", "btn--ghost"));
+    btn.classList.replace("btn--ghost", "btn--hanko");
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+  });
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await client.auth.signOut();
+  window.location.href = "/login-admin";
+});
+
+// Toggle menu mobile (hamburger)
+const navToggle = document.getElementById("navToggle");
+const navMenu = document.getElementById("navMenu");
+navToggle.addEventListener("click", () => {
+  const isOpen = navMenu.classList.toggle("nav-open");
+  navToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+});
+navMenu.addEventListener("click", (e) => {
+  if (e.target.closest("a, button")) {
+    navMenu.classList.remove("nav-open");
+    navToggle.setAttribute("aria-expanded", "false");
+  }
+});
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 720) {
+    navMenu.classList.remove("nav-open");
+    navToggle.setAttribute("aria-expanded", "false");
+  }
+});
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = str ?? "";
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
